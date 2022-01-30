@@ -1,0 +1,5 @@
+Parameters: N=2, t=0, m=0
+-- Task 4. --
+Subnet Address:192.168.2.0
+	subnet down: 2020/10/19 13:34:51 -- 2020/10/19 13:35:59 (   68 [sec.])
+

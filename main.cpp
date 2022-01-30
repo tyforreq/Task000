@@ -41,7 +41,7 @@ extern void print_all(const std::vector<Server> &servers);
 
 // 課題1, 2, 3
 // 故障or各負荷サーバーの出力
-extern void print_failures(std::vector<Server> &servers, int N=0, float t=0.0, int m=0);
+extern void print_failures(std::vector<Server> &servers, int N=1, float t=0.0, int m=0);
 
 // 課題4
 // ネットワークスイッチの故障検出
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 
     if (task_3) {
         std::cout << "-- Task 3. --" << std::endl;
-        print_failures(servers, N, t, m);
+        print_failures(servers, 0, t, m);
         std::cout << std::endl;
     }
 
@@ -250,7 +250,8 @@ void print_failures(std::vector<Server> &servers, int N, float t, int m)
     for (Server &server: servers) {
         std::vector<Event> failed_log;
         std::vector<Event> overload_log;
-        calc_failure(failed_log, server, N);
+        if (N != 0)
+            calc_failure(failed_log, server, N);
         if (m != 0)
             calc_overload(overload_log, server, t, m);
             
@@ -314,12 +315,26 @@ void calc_failure(
                 ss << " -- " << std::put_time(&server.dates[i], FTIME);
                 ss << " (" << std::right << std::setw(5);
                 ss << std::mktime(&server.dates[i]) - std::mktime(&start);
-                ss << " [sec.], timed out: " << count << " times)";
+                ss << " [sec.], time out: " << count << ")";
                 e.text = ss.str();
                 log.push_back(e);
             }
             failed = false;
             continue;
+        }
+    }
+
+    // 応答が最後までない場合
+    if (failed) {
+        if (count >= N) {
+            std::stringstream ss;
+            Event e;
+            e.type = 0; // down
+            e.start = start;
+            ss << "down: " << std::put_time(&start, FTIME);
+            ss << " -- (time out: " << count << ")";
+            e.text = ss.str();
+            log.push_back(e);
         }
     }
 }
@@ -353,9 +368,11 @@ void calc_overload(std::vector<Event> &log, Server &server,
             if (count == m) break;
         }
 
-        // 一度も応答が無い場合はtotal_response=0とする
-        if (count != 0)
+        // 一度も応答が無い場合はtotal_response=-1とする -> 検出しない
+        if (count == m)
             total_response /= count;
+        else
+            total_response = -1;
 
 
         #ifdef DEBUG
@@ -393,6 +410,17 @@ void calc_overload(std::vector<Event> &log, Server &server,
             is_overloaded = false;
             continue;
         }
+    }
+
+    // 最後まで負荷あり
+    if (is_overloaded) {
+        std::stringstream ss;
+        Event e;
+        e.start = start;
+        ss << "overload: " << std::put_time(&start, FTIME);
+        ss << " -- ";
+        e.text = ss.str();
+        log.push_back(e);
     }
 }
 
@@ -588,6 +616,18 @@ void print_network_failures(std::vector<Server> &servers, std::vector<std::vecto
                 
                 continue;
             }
+        }
+
+        // 最後まで故障状態だった場合
+        if (net_failed) {
+            std::stringstream ss;
+            Event e;
+            e.start = start;
+            ss << "subnet down: " << std::put_time(&start, FTIME);
+            ss << " -- ";
+            e.text = ss.str();
+            net_events.push_back(e);
+
         }
 
         // 結果の出力

@@ -4,3 +4,5 @@ memo.txt
 task.txt
 data/sample.csv
 out.txt
+.vscode
+run.sh
